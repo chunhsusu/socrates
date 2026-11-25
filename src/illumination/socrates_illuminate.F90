@@ -20,7 +20,7 @@ character(len=*), parameter, private :: ModuleName = 'SOCRATES_ILLUMINATE'
 contains
 
 subroutine illuminate( &
-    l_calendar_360, l_observer, l_stellar_position, l_stellar_angle, &
+    calendar_type, l_observer, l_stellar_position, l_stellar_angle, &
     l_slope, l_shading, &
     n_profile, n_horiz_layer, n_horiz_ang, i_elements, i_spin, &
     year, month, day_of_month, day_of_year, second_of_day, length_of_timestep, &
@@ -43,7 +43,8 @@ subroutine illuminate( &
 
   implicit none
 
-  logical, intent(in), optional :: l_calendar_360, l_observer
+  logical, intent(in), optional :: l_observer
+  integer, intent(in), optional :: calendar_type
   logical, intent(in), optional :: l_stellar_position, l_stellar_angle
   logical, intent(in), optional :: l_slope, l_shading
   integer, intent(in), optional :: n_profile, n_horiz_layer, n_horiz_ang
@@ -117,7 +118,7 @@ subroutine illuminate( &
   if (l_stellar_position) then
     ! Find stellar position from the planet surface
     call solpos(orbit, year, day_of_year, second, dt, &
-      sindec, eqt, scs, l_observer, l_calendar_360, &
+      sindec, eqt, scs, l_observer, calendar_type, &
       sindec_obs, eqt_obs, phase_obs)
 
     if (present(sin_stellar_declination)) &

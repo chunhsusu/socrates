@@ -15,7 +15,7 @@ IMPLICIT NONE
 CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'ORBPRM_MOD'
 CONTAINS
 
-SUBROUTINE orbprm(day, year, l_sec_var, lcal360, e, gamph, oblq, mean_anomaly)
+SUBROUTINE orbprm(day, year, l_sec_var, calendar_type, e, gamph, oblq, mean_anomaly)
 
 ! Subroutine to calculate the parameters of the Earth's orbit.
 !
@@ -41,13 +41,14 @@ USE astro_constants_mod , ONLY:                                    &
     lin_rate_gn_prcs, lph_dflt, m, n_term_ecn_lph, n_term_gn_prcs, &
     n_term_obq, oblq_cnst, oblq_dflt, r, tau0_dflt, year_ref,      &
     year_ref_ve, tropyearlength
+USE nlstcall_mod, ONLY: i360day, i365day, gregorian
 
 IMPLICIT NONE
 
 INTEGER, INTENT(IN) :: day        ! Day-number in the year
 INTEGER, INTENT(IN) :: year       ! Calendar year
 LOGICAL, INTENT(IN) :: l_sec_var  ! Include secular variations of the orbit
-LOGICAL, INTENT(IN) :: lcal360    ! Use a calendar of 360 days
+INTEGER, INTENT(IN) :: calendar_type
 
 ! Parameters of the Earth's orbit:
 REAL(RealK), INTENT(OUT) :: e     ! Eccentricity of the orbit
@@ -98,8 +99,10 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 !  (as is often used in climate runs),
 !  or for a real Gregorian calendar which has 365 days in
 !  non-leap years and 366 in leap years.
-IF (lcal360) THEN
+IF (calendar_type == i360day) THEN
   diny=360.0_RealK
+ELSE IF (calendar_type == i365day) THEN
+  diny=365.0_RealK
 ELSE
   ! Is this a leap year?
   IF (MOD(year,4)    ==  0 .AND.                                  &
@@ -187,10 +190,12 @@ IF (l_sec_var) THEN
   !  DATE_VE by 360/(length of tropical year).
 
   ! Is a 360 day calendar being used?
-  IF (lcal360) THEN
+  IF (calendar_type == i360day) THEN
     date_ve = date_ve_dflt + no_leap_days
     date_ve = date_ve * diny / tropyearlength
   ! Is a 365 day calendar being used?
+  ELSE IF (calendar_type == i365day) THEN
+    date_ve = date_ve_dflt + (no_leap_days + (diny - 365.0_RealK))
   ELSE
     ! Is the epoch reference year a leap year?
     IF (MOD(year_ref_ve,4)    ==  0 .AND.                         &
@@ -226,7 +231,7 @@ ELSE
 END IF
 
 ! If using a 360-day calendar the time of the perihelion is adjusted.
-IF (lcal360) THEN
+IF (calendar_type == i360day) THEN
   tau0 = tau0*(360.0_RealK/tropyearlength)+0.71_RealK
 END IF
 
@@ -234,7 +239,7 @@ END IF
 ! The 0.5 accounts for the time in days since mid-night.
 ! The references are to Smart 1944 (and UMDP23)
 ! Eq 67 p. 113 and n=2pi/orbital period     (Eq 3.1.1)
-IF (lcal360) THEN
+IF (calendar_type == i360day) THEN
   mean_anomaly = (twopi/diny)           * (REAL(day, RealK) - tau0 - 0.5_RealK)
 ELSE
   mean_anomaly = (twopi/tropyearlength) * (REAL(day, RealK) - tau0 - 0.5_RealK)

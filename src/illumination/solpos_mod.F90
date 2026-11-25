@@ -12,13 +12,13 @@ CHARACTER(LEN=*), PARAMETER, PRIVATE :: ModuleName = 'SOLPOS_MOD'
 CONTAINS
 
 SUBROUTINE solpos (orbit, year, day, seconds, timestep, sindec, eqt, scs, &
-                   l_observer, l_calendar_360, sindec_obs, eqt_obs, phase_obs)
+                   l_observer, calendar_type, sindec_obs, eqt_obs, phase_obs)
 
 ! Description:
 !  Calculations of the planet's orbit from the day of the year and the
 !  orbital elements. It calculates the sin of the solar declination and the
 !  inverse-square scaling factor for the solar "constant". It is thus
-!  intrinsically scalar. Calculations depend on whether l_cal360 is set:
+!  intrinsically scalar. Calculations depend on calendar_type: 
 !  this replaces the Julian calendar with the climate-mode 360-day calendar.
 
 USE realtype_rd, ONLY: RealK
@@ -29,6 +29,7 @@ USE def_orbit, ONLY: StrOrbit, ip_smart, ip_mueller, ip_elements_user, &
   ip_elements_earth_fixed, ip_elements_earth_secular_variation, &
   ip_spin_user, ip_spin_earth_day, ip_spin_fixed_sun
 USE orbprm_mod, ONLY: orbprm
+USE nlstcall_mod, ONLY: gregorian
 
 IMPLICIT NONE
 
@@ -48,8 +49,8 @@ REAL(RealK), INTENT(OUT) :: scs
 
 LOGICAL, INTENT(IN), OPTIONAL :: l_observer
 !       Calculate angles towards distant observer
-LOGICAL, INTENT(IN), OPTIONAL :: l_calendar_360
-!       Use 360 day calendar
+INTEGER, INTENT(IN), OPTIONAL :: calendar_type
+!       Use 360 day, 365 day, gregorian calendar
 
 REAL(RealK), INTENT(OUT), OPTIONAL :: eqt_obs
 !       The equation of time, specified as an hour angle in radians for the
@@ -97,9 +98,10 @@ REAL(RealK) :: obs_eqt_x, obs_eqt_y, obs_eqt_z
 LOGICAL :: l_sec_var
 !       Use secular variations of the Earth's orbit
 
-LOGICAL :: l_cal360
 LOGICAL :: l_obs
 !       Local logicals for optional inputs
+
+INTEGER :: cal_type
 
 INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
 INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -115,10 +117,10 @@ ELSE
   l_obs = .FALSE.
 END IF
 
-IF (PRESENT(l_calendar_360)) THEN
-  l_cal360 = l_calendar_360
+IF (PRESENT(calendar_type)) THEN
+  cal_type = calendar_type
 ELSE
-  l_cal360 = .FALSE.
+  cal_type = gregorian
 END IF
 
 SELECT CASE (orbit%i_elements)
@@ -149,13 +151,13 @@ CASE (ip_elements_earth_fixed)
 
   l_sec_var = .FALSE.
   ! Fixed orbital parameters for the Earth
-  CALL orbprm(day, year, l_sec_var, l_cal360, e, gamph, oblq, m)
+  CALL orbprm(day, year, l_sec_var, cal_type, e, gamph, oblq, m)
 
 CASE (ip_elements_earth_secular_variation)
 
   l_sec_var = .TRUE.
   ! Varying orbital parameters for the Earth
-  CALL orbprm(day, year, l_sec_var, l_cal360, e, gamph, oblq, m)
+  CALL orbprm(day, year, l_sec_var, cal_type, e, gamph, oblq, m)
 
 END SELECT
 
